@@ -2,21 +2,29 @@ import Koa from 'koa'
 import Router from '@koa/router'
 import { tmpdir } from 'os'
 import { resolve } from 'path'
-import { readdirSync } from 'fs'
+import { readdirSync, readFileSync } from 'fs'
 import { MemepackBuilder } from 'memepack-builder'
 import cors from '@koa/cors'
 import koaBody from 'koa-body'
+import AWS from 'aws-sdk'
+const mime = require('mime-types')
+require('dotenv').config({ path: process.env.NODE_ENV === 'production' ? resolve(__dirname, '../.env.production') : '../.env' })
 
 const app = new Koa()
 const router = new Router()
 app.use(cors())
 app.use(koaBody())
 
+const s3 = new AWS.S3({
+  accessKeyId: process.env.S3_KEYID,
+  secretAccessKey: process.env.S3_SECRET,
+  endpoint: `https://${process.env.S3_REGION}.aliyuncs.com`
+})
 
 const root = process.env.NODE_ENV === 'production' ? '/mnt/meme/' : resolve(__dirname, '..', 'data')
 
 const jePath = resolve(root, 'mcwzh-meme-resourcepack')
-const bePath = resolve(root, 'mcwzh - meme - resourcepack - bedrock')
+const bePath = resolve(root, 'mcwzh-meme-resourcepack-bedrock')
 
 const je = new MemepackBuilder('je', resolve(jePath, 'meme_resourcepack'), resolve(jePath, 'modules'))
 const be = new MemepackBuilder('be', resolve(bePath, 'meme_resourcepack'), resolve(jePath, 'modules'))
@@ -30,7 +38,7 @@ router.get('/', async (ctx) => {
       je_modules: je.moduleChecker.moduleInfo().modules,
       be_modules: be.moduleChecker.moduleInfo().modules,
       je_modified: 0,
-      be_modified: 0
+      be_modified: 0,
     }
   } catch (e) {
     ctx.status = 403
@@ -51,14 +59,24 @@ router.post('/ajax', async (ctx) => {
   }
   try {
     let r = await builder.build(true)
+
+    const tmpPath = resolve(tmpdir(), r.name)
+    console.log(tmpPath)
+    await s3.putObject({
+      Key: r.name,
+      Body: readFileSync(tmpPath),
+      Bucket: process.env.S3_BUCKET,
+      ContentType: mime.lookup(tmpPath) || "application/zip"
+    }).promise()
     ctx.body = {
       logs: builder.log.join('\n'),
-      filename: r.name
+      filename: r.name,
+      root: process.env.S3_ROOT
     }
   } catch (e) {
     ctx.status = 403
     ctx.body = {
-      logs: e.message + '\n' + builder.log.join('\n')
+      logs: e.stack + '\n' + builder.log.join('\n')
     }
   }
 })
@@ -66,6 +84,6 @@ router.post('/ajax', async (ctx) => {
 app.use(router.routes())
 app.use(router.allowedMethods())
 
-const server = app.listen(9000)
+const server = app.listen(~~process.env.FC_SERVER_PORT || 8000)
 server.timeout = 0
 server.keepAliveTimeout = 0
