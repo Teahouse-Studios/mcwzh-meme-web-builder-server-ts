@@ -4,6 +4,7 @@
     "dev": "nodemon dist/index.js"
   },
   "dependencies": {
+    "@koa/cors": "^3.1.0",
     "@koa/router": "^10.1.1",
     "koa": "^2.13.1",
     "memepack-builder": "^0.1.0-alpha.3"
