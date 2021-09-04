@@ -2,3 +2,5 @@ node_modules
 dist
 data
 yarn-error.log
+.fun
+template.yml
