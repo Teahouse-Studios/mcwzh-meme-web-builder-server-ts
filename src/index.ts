@@ -31,16 +31,25 @@ router.get('/', async (ctx) => {
 })
 
 router.post('/ajax', async (ctx) => {
-  const {type, modules, mod, sfw, format} = ctx.request.body
-  je.builder.options = {
+  const { type, modules, mod, sfw, format, compatible } = ctx.request.body
+  const _be = Boolean(ctx.request.body._be);
+  const builder = _be ? be : je
+  builder.builder.options = {
     type, modules, mod, sfw, format, hash: true,
+    compatible,
     outputDir: tmpdir()
   }
-  let r = await je.build(true)
-  ctx.body = {
-    code: 200,
-    logs: je.log.join('\n'),
-    filename: r.name
+  try {
+    let r = await builder.build(true)
+    ctx.body = {
+      logs: builder.log.join('\n'),
+      filename: r.name
+    }
+  } catch (e) {
+    ctx.status = 403
+    ctx.body = {
+      logs: e.message + '\n' + builder.log.join('\n')
+    }
   }
 })
 
