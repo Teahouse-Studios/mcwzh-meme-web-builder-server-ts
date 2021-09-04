@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "module": "commonjs",
+    "outDir": "dist",
+    "rootDir": "src",
+    "esModuleInterop": true,
+    "target": "es2020",
+    "moduleResolution": "node",
+    "inlineSourceMap": true
+  }
+}
