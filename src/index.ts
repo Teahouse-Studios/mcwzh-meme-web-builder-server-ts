@@ -2,24 +2,27 @@ import Koa from 'koa'
 import Router from '@koa/router'
 import { tmpdir } from 'os'
 import { resolve } from 'path'
-import { readdirSync, readFileSync } from 'fs'
+import { readdirSync } from 'fs'
 import { MemepackBuilder } from 'memepack-builder'
 import cors from '@koa/cors'
 import koaBody from 'koa-body'
-import AWS from 'aws-sdk'
-const mime = require('mime-types')
-require('dotenv').config({ path: process.env.NODE_ENV === 'production' ? resolve(__dirname, '../.env.production') : '../.env' })
+import { S3 } from 'aws-sdk'
+require('dotenv').config({ path: resolve(__dirname, process.env.NODE_ENV === 'production' ? '../.env.production' : '../.env') })
 
 const app = new Koa()
 const router = new Router()
 app.use(cors())
 app.use(koaBody())
 
-const s3 = new AWS.S3({
-  accessKeyId: process.env.S3_KEYID,
-  secretAccessKey: process.env.S3_SECRET,
+const s3 = new S3({
+  credentials: {
+    accessKeyId: process.env.S3_KEYID,
+    secretAccessKey: process.env.S3_SECRET,
+  },
+  region: process.env.S3_REGION,
   endpoint: `https://${process.env.S3_REGION}.aliyuncs.com`
 })
+
 
 const root = process.env.NODE_ENV === 'production' ? '/mnt/meme/' : resolve(__dirname, '..', 'data')
 
@@ -59,15 +62,12 @@ router.post('/ajax', async (ctx) => {
   }
   try {
     let r = await builder.build(true)
-
-    const tmpPath = resolve(tmpdir(), r.name)
-    console.log(tmpPath)
     await s3.putObject({
       Key: r.name,
-      Body: readFileSync(tmpPath),
+      Body: r.buf,
       Bucket: process.env.S3_BUCKET,
-      ContentType: mime.lookup(tmpPath) || "application/zip"
-    }).promise()
+      ContentType: "application/zip"
+    })
     ctx.body = {
       logs: builder.log.join('\n'),
       filename: r.name,
