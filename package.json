@@ -9,6 +9,7 @@
     "@koa/router": "^10.1.1",
     "aws-sdk": "^2.983.0",
     "dotenv": "^10.0.0",
+    "isomorphic-git": "^1.10.0",
     "koa": "^2.13.1",
     "koa-body": "^4.2.0",
     "memepack-builder": "^0.1.0-alpha.3"

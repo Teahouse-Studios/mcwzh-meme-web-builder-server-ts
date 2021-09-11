@@ -2,11 +2,13 @@ import Koa from 'koa'
 import Router from '@koa/router'
 import { tmpdir } from 'os'
 import { resolve } from 'path'
-import { readdirSync } from 'fs'
+import fs, { readdirSync, readFileSync } from 'fs'
 import { MemepackBuilder } from 'memepack-builder'
 import cors from '@koa/cors'
 import koaBody from 'koa-body'
 import { S3 } from 'aws-sdk'
+import git from 'isomorphic-git'
+import http from 'isomorphic-git/http/node'
 require('dotenv').config({ path: resolve(__dirname, process.env.NODE_ENV === 'production' ? '../.env.production' : '../.env') })
 
 const app = new Koa()
@@ -79,6 +81,20 @@ router.post('/ajax', async (ctx) => {
       logs: e.stack + '\n' + builder.log.join('\n')
     }
   }
+})
+
+router.get('/github/:type', async (ctx) => {
+  const dir = ctx.params.type === "je" ? jePath : bePath
+  console.log(await git.pull({
+    dir, fs, http, ref: 'master',
+    author: {
+      name: 'builder server'
+    }
+  }))
+  ctx.body = await git.log({
+    dir: jePath,
+    fs
+  })
 })
 
 app.use(router.routes())
