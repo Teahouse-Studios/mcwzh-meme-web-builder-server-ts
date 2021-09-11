@@ -72,7 +72,7 @@ router.post('/ajax', async (ctx) => {
       Body: r.buf,
       Bucket: process.env.S3_BUCKET,
       ContentType: "application/zip"
-    })
+    }).promise()
     ctx.body = {
       logs: builder.log.join('\n'),
       filename: r.name,
