@@ -8,9 +8,8 @@ import cors from '@koa/cors'
 import koaBody from 'koa-body'
 import unparsed from 'koa-body/unparsed.js'
 import { S3 } from 'aws-sdk'
-import git from 'isomorphic-git'
-import http from 'isomorphic-git/http/node'
 import crypto from 'crypto'
+import {exec} from 'child_process'
 require('dotenv').config({ path: resolve(__dirname, process.env.NODE_ENV === 'production' ? '../.env.production' : '../.env') })
 
 const app = new Koa()
@@ -99,16 +98,9 @@ router.post('/github/', async (ctx) => {
     }
   }
   const dir = ctx.request.body.repository.name === "mcwzh-meme-resourcepack" ? jePath : bePath
-  console.log(await git.pull({
-    dir, fs, http, ref: 'master',
-    author: {
-      name: 'builder server'
-    }
-  }))
-  ctx.body = await git.log({
-    dir: jePath,
-    fs
-  })
+  exec(`git --git-dir=${dir}/.git checkout master`)
+  exec(`git --git-dir=${dir}/.git pull`)
+  ctx.body = "ok"
 })
 
 app.use(router.routes())
