@@ -6,15 +6,19 @@ import fs, { readdirSync, readFileSync } from 'fs'
 import { MemepackBuilder } from 'memepack-builder'
 import cors from '@koa/cors'
 import koaBody from 'koa-body'
+import unparsed from 'koa-body/unparsed.js'
 import { S3 } from 'aws-sdk'
 import git from 'isomorphic-git'
 import http from 'isomorphic-git/http/node'
+import crypto from 'crypto'
 require('dotenv').config({ path: resolve(__dirname, process.env.NODE_ENV === 'production' ? '../.env.production' : '../.env') })
 
 const app = new Koa()
 const router = new Router()
 app.use(cors())
-app.use(koaBody())
+app.use(koaBody({
+  includeUnparsed: true
+}))
 
 const s3 = new S3({
   credentials: {
@@ -83,8 +87,18 @@ router.post('/ajax', async (ctx) => {
   }
 })
 
-router.get('/github/:type', async (ctx) => {
-  const dir = ctx.params.type === "je" ? jePath : bePath
+router.post('/github/', async (ctx) => {
+  const sigHeaderName = 'x-hub-signature-256'
+  const remoteSig = Buffer.from(ctx.headers[sigHeaderName].toString())
+  const hmac = crypto.createHmac('sha256', process.env.GH_WEBHOOK_SECRET)
+  const digest = Buffer.from('sha256=' + hmac.update(ctx.request.body[unparsed]).digest('hex'), 'utf-8')
+  if (remoteSig.length !== digest.length || !crypto.timingSafeEqual(digest, remoteSig)) {
+    console.log(`remote ${remoteSig}, local ${digest}`)
+    if (process.env.NODE_ENV === 'production') {
+      return ctx.status = 403
+    }
+  }
+  const dir = ctx.request.body.repository.name === "mcwzh-meme-resourcepack" ? jePath : bePath
   console.log(await git.pull({
     dir, fs, http, ref: 'master',
     author: {
