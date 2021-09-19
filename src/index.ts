@@ -9,8 +9,11 @@ import koaBody from 'koa-body'
 import unparsed from 'koa-body/unparsed.js'
 import { S3 } from 'aws-sdk'
 import crypto from 'crypto'
-import {exec} from 'child_process'
+import { exec } from 'child_process'
+import { promisify } from 'util'
 require('dotenv').config({ path: resolve(__dirname, process.env.NODE_ENV === 'production' ? '../.env.production' : '../.env') })
+
+const execPromise = promisify(exec)
 
 const app = new Koa()
 const router = new Router()
@@ -37,6 +40,18 @@ const bePath = resolve(root, 'mcwzh-meme-resourcepack-bedrock')
 const je = new MemepackBuilder('je', resolve(jePath, 'meme_resourcepack'), resolve(jePath, 'modules'))
 const be = new MemepackBuilder('be', resolve(bePath, 'meme_resourcepack'), resolve(jePath, 'modules'))
 
+app.use(async (ctx, next) => {
+  try {
+    await next()
+  }
+  catch (e) {
+    console.error(e)
+    ctx.status = 500
+    ctx.body = {
+      logs: e.stack
+    }
+  }
+})
 router.get('/', async (ctx) => {
   try {
     let mods = (await readdirSync(resolve(jePath, 'mods'))).map(v => `mods/${v}`)
@@ -49,6 +64,7 @@ router.get('/', async (ctx) => {
       be_modified: 0,
     }
   } catch (e) {
+    console.error(e)
     ctx.status = 403
     ctx.body = {
       message: e.stack
@@ -79,6 +95,7 @@ router.post('/ajax', async (ctx) => {
       root: process.env.S3_ROOT
     }
   } catch (e) {
+    console.error(e)
     ctx.status = 403
     ctx.body = {
       logs: e.stack + '\n' + builder.log.join('\n')
@@ -98,9 +115,15 @@ router.post('/github/', async (ctx) => {
     }
   }
   const dir = ctx.request.body.repository.name === "mcwzh-meme-resourcepack" ? jePath : bePath
-  exec(`git --git-dir=${dir}/.git checkout master`)
-  exec(`git --git-dir=${dir}/.git pull`)
-  ctx.body = "ok"
+  let result = ""
+  let r = await execPromise(`git checkout master`, { cwd: dir })
+  result += "\n" + r.stdout
+  r = await execPromise(`git pull`, { cwd: dir })
+  result += "\n" + r.stdout
+  ctx.body = {
+    stdout: result,
+    dir
+  }
 })
 
 app.use(router.routes())

@@ -2,7 +2,8 @@
   "scripts": {
     "watch": "tsc --watch",
     "dev": "nodemon dist/index.js",
-    "build": "ncc build --v8-cache src/index.ts"
+    "build": "ncc build --v8-cache src/index.ts",
+    "deploy": "s build && s deploy all -y"
   },
   "dependencies": {
     "@koa/cors": "^3.1.0",
