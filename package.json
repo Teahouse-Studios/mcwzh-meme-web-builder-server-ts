@@ -2,7 +2,7 @@
   "scripts": {
     "watch": "tsc --watch",
     "dev": "nodemon dist/index.js",
-    "build": "ncc build --v8-cache src/index.ts",
+    "build": "ts-node build.ts",
     "deploy": "s build && s deploy all -y"
   },
   "dependencies": {
@@ -10,14 +10,15 @@
     "@koa/router": "^10.1.1",
     "aws-sdk": "^2.983.0",
     "dotenv": "^10.0.0",
+    "esbuild": "^0.12.28",
     "koa": "^2.13.1",
     "koa-body": "^4.2.0",
-    "memepack-builder": "0.1.0-alpha.6"
+    "memepack-builder": "0.1.0-alpha.6",
+    "ts-node": "^10.2.1"
   },
   "devDependencies": {
     "@types/koa__router": "^8.0.7",
     "@types/node": "^16.7.10",
-    "@vercel/ncc": "^0.30.0",
     "nodemon": "^2.0.12",
     "typescript": "^4.4.2"
   }
