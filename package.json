@@ -3,7 +3,7 @@
     "watch": "tsc --watch",
     "dev": "nodemon dist/index.js",
     "build": "ts-node build.ts",
-    "deploy": "s build && s deploy all -y"
+    "deploy": "yarn build && s build && rimraf ./.s/**/node_modules && s deploy all --use-local -y"
   },
   "dependencies": {
     "@koa/cors": "^3.1.0",
@@ -13,13 +13,16 @@
     "esbuild": "^0.12.28",
     "koa": "^2.13.1",
     "koa-body": "^4.2.0",
-    "memepack-builder": "0.1.0-alpha.6",
+    "memepack-builder": "^0.1.0-alpha.7",
+    "minio": "^7.0.19",
     "ts-node": "^10.2.1"
   },
   "devDependencies": {
     "@types/koa__router": "^8.0.7",
+    "@types/minio": "^7.0.10",
     "@types/node": "^16.7.10",
     "nodemon": "^2.0.12",
+    "rimraf": "^3.0.2",
     "typescript": "^4.4.2"
   }
 }

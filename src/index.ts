@@ -9,6 +9,7 @@ import koaBody from 'koa-body'
 import unparsed from 'koa-body/unparsed.js'
 import { S3 } from 'aws-sdk'
 import crypto from 'crypto'
+const Minio = require('minio')
 import { exec } from 'child_process'
 import { promisify } from 'util'
 require('dotenv').config({ path: resolve(__dirname, process.env.NODE_ENV === 'production' ? '../.env.production' : '../.env') })
@@ -22,15 +23,14 @@ app.use(koaBody({
   includeUnparsed: true
 }))
 
-const s3 = new S3({
-  credentials: {
-    accessKeyId: process.env.S3_KEYID,
-    secretAccessKey: process.env.S3_SECRET,
-  },
+const client = new Minio.Client({
+  endPoint: `${process.env.S3_REGION}.aliyuncs.com`,
+  accessKey:  process.env.S3_KEYID,
+  secretKey: process.env.S3_SECRET,
+  pathStyle: false,
   region: process.env.S3_REGION,
-  endpoint: `https://${process.env.S3_REGION}.aliyuncs.com`
+  bucket: process.env.S3_BUCKET
 })
-
 
 const root = process.env.NODE_ENV === 'production' ? '/mnt/meme/' : resolve(__dirname, '..', 'data')
 
@@ -83,12 +83,16 @@ router.post('/ajax', async (ctx) => {
   }
   try {
     let r = await builder.build(true)
-    await s3.putObject({
-      Key: r.name,
-      Body: r.buf,
-      Bucket: process.env.S3_BUCKET,
-      ContentType: "application/zip"
-    }).promise()
+    let exist = true
+    try {
+      const head = await client.statObject(process.env.S3_BUCKET, r.name)
+    } catch (e) {
+      exist = false
+    }
+    if (!exist) {
+      console.log('not exist, reupload')
+      await client.putObject(process.env.S3_BUCKET, r.name, r.buf)
+    }
     ctx.body = {
       logs: builder.log.join('\n'),
       filename: r.name,

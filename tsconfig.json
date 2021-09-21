@@ -1,4 +1,10 @@
 {
+  "exclude": [
+    "build.ts"
+  ],
+  "include": [
+    "src"
+  ],
   "compilerOptions": {
     "module": "commonjs",
     "outDir": "dist",
