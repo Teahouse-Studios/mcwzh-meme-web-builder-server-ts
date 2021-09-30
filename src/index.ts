@@ -2,7 +2,7 @@ import Koa from 'koa'
 import Router from '@koa/router'
 import { tmpdir } from 'os'
 import { resolve } from 'path'
-import { readdirSync } from 'fs'
+import { readdirSync, statSync } from 'fs'
 import { MemepackBuilder, ModuleChecker } from 'memepack-builder'
 import cors from '@koa/cors'
 import koaBody from 'koa-body'
@@ -62,8 +62,8 @@ router.get('/', async (ctx) => {
       mods, enmods,
       je_modules: (await jeModules.moduleInfo()).modules,
       be_modules: (await beModules.moduleInfo()).modules,
-      je_modified: 0,
-      be_modified: 0,
+      je_modified: statSync(resolve(jePath, '.git/index')).mtime.valueOf() ,
+      be_modified: statSync(resolve(bePath, '.git/index')).mtime.valueOf() 
     }
   } catch (e) {
     console.error(e)
@@ -73,10 +73,6 @@ router.get('/', async (ctx) => {
     }
   }
 })
-
-process.on('uncaughtException', (e) => {
-  console.log(e)
-});
 
 router.post('/ajax', async (ctx) => {
   const { type, modules, mod, sfw, format, compatible } = ctx.request.body
@@ -91,7 +87,7 @@ router.post('/ajax', async (ctx) => {
     let r = await builder.build(true)
     let exist = true
     try {
-      const head = await client.statObject(process.env.S3_BUCKET, r.name)
+      await client.statObject(process.env.S3_BUCKET, r.name)
     } catch (e) {
       exist = false
     }
