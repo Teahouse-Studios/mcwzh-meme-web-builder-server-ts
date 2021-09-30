@@ -74,6 +74,10 @@ router.get('/', async (ctx) => {
   }
 })
 
+process.on('uncaughtException', (e) => {
+  console.log(e)
+});
+
 router.post('/ajax', async (ctx) => {
   const { type, modules, mod, sfw, format, compatible } = ctx.request.body
   const _be = Boolean(ctx.request.body._be);
