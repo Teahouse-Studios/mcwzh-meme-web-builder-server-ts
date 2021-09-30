@@ -2,12 +2,11 @@ import Koa from 'koa'
 import Router from '@koa/router'
 import { tmpdir } from 'os'
 import { resolve } from 'path'
-import fs, { readdirSync, readFileSync } from 'fs'
-import { MemepackBuilder } from 'memepack-builder'
+import { readdirSync } from 'fs'
+import { MemepackBuilder, ModuleChecker } from 'memepack-builder'
 import cors from '@koa/cors'
 import koaBody from 'koa-body'
 import unparsed from 'koa-body/unparsed.js'
-import { S3 } from 'aws-sdk'
 import crypto from 'crypto'
 const Minio = require('minio')
 import { exec } from 'child_process'
@@ -40,6 +39,9 @@ const bePath = resolve(root, 'mcwzh-meme-resourcepack-bedrock')
 const je = new MemepackBuilder('je', resolve(jePath, 'meme_resourcepack'), resolve(jePath, 'modules'))
 const be = new MemepackBuilder('be', resolve(bePath, 'meme_resourcepack'), resolve(jePath, 'modules'))
 
+const jeModules = new ModuleChecker(resolve(jePath, 'modules'))
+const beModules = new ModuleChecker( resolve(bePath, 'modules'))
+
 app.use(async (ctx, next) => {
   try {
     await next()
@@ -58,8 +60,8 @@ router.get('/', async (ctx) => {
     let enmods = (await readdirSync(resolve(jePath, 'en-mods'))).map(v => `en-mods/${v}`)
     ctx.body = {
       mods, enmods,
-      je_modules: je.moduleChecker.moduleInfo().modules,
-      be_modules: be.moduleChecker.moduleInfo().modules,
+      je_modules: (await jeModules.moduleInfo()).modules,
+      be_modules: (await beModules.moduleInfo()).modules,
       je_modified: 0,
       be_modified: 0,
     }
@@ -76,7 +78,7 @@ router.post('/ajax', async (ctx) => {
   const { type, modules, mod, sfw, format, compatible } = ctx.request.body
   const _be = Boolean(ctx.request.body._be);
   const builder = _be ? be : je
-  builder.builder.options = {
+  builder.options = {
     type, modules, mod, sfw, format, hash: true,
     compatible,
     outputDir: tmpdir()

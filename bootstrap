@@ -2,4 +2,4 @@
 set +e
 
 git config --global url."git://".insteadof https://
-NODE_ENV=production node ./dist/index.js
+NODE_ENV=production node --enable-source-maps ./dist/index.js

@@ -13,7 +13,7 @@
     "esbuild": "^0.12.28",
     "koa": "^2.13.1",
     "koa-body": "^4.2.0",
-    "memepack-builder": "^0.1.0-alpha.7",
+    "memepack-builder": "^0.1.0-alpha.8",
     "minio": "^7.0.19",
     "ts-node": "^10.2.1"
   },
