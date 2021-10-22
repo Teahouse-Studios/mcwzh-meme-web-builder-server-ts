@@ -1,4 +1,5 @@
 {
+  "license": "Apache-2.0",
   "scripts": {
     "watch": "tsc --watch",
     "dev": "nodemon dist/index.js",

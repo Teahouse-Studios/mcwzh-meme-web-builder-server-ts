@@ -3,7 +3,7 @@ import Router from '@koa/router'
 import { tmpdir } from 'os'
 import { resolve } from 'path'
 import { readdirSync, statSync } from 'fs'
-import { MemepackBuilder, ModuleChecker } from 'memepack-builder'
+import { MemepackBuilder, ModuleParser } from 'memepack-builder'
 import cors from '@koa/cors'
 import koaBody from 'koa-body'
 import unparsed from 'koa-body/unparsed.js'
@@ -36,11 +36,11 @@ const root = process.env.NODE_ENV === 'production' ? '/mnt/meme/' : resolve(__di
 const jePath = resolve(root, 'mcwzh-meme-resourcepack')
 const bePath = resolve(root, 'mcwzh-meme-resourcepack-bedrock')
 
-const je = new MemepackBuilder('je', resolve(jePath, 'meme_resourcepack'), resolve(jePath, 'modules'))
-const be = new MemepackBuilder('be', resolve(bePath, 'meme_resourcepack'), resolve(jePath, 'modules'))
+const je = new MemepackBuilder({ platform: 'je', resourcePath: resolve(jePath, 'meme_resourcepack'), modulePath: resolve(jePath, 'modules') })
+const be = new MemepackBuilder({ platform: 'be', resourcePath: resolve(bePath, 'meme_resourcepack'), modulePath: resolve(bePath, 'modules') })
 
-const jeModules = new ModuleChecker(resolve(jePath, 'modules'))
-const beModules = new ModuleChecker( resolve(bePath, 'modules'))
+const jeModules = new ModuleParser(resolve(jePath, 'modules'))
+const beModules = new ModuleParser(resolve(bePath, 'modules'))
 
 app.use(async (ctx, next) => {
   try {
@@ -55,15 +55,23 @@ app.use(async (ctx, next) => {
   }
 })
 router.get('/', async (ctx) => {
+  const jeModulesInfo = (await jeModules.moduleInfo()).modules.map(({ languageModification, ...rest }) => ({ ...rest }))
+  const beModulesInfo = (await beModules.moduleInfo()).modules.map(({ languageModification, ...rest }) => ({ ...rest }))
   try {
     let mods = (await readdirSync(resolve(jePath, 'mods'))).map(v => `mods/${v}`)
     let enmods = (await readdirSync(resolve(jePath, 'en-mods'))).map(v => `en-mods/${v}`)
     ctx.body = {
       mods, enmods,
-      je_modules: (await jeModules.moduleInfo()).modules,
-      be_modules: (await beModules.moduleInfo()).modules,
-      je_modified: statSync(resolve(jePath, '.git/index')).mtime.valueOf() ,
-      be_modified: statSync(resolve(bePath, '.git/index')).mtime.valueOf() 
+      je_modules: {
+        resource: jeModulesInfo.filter((i) => { return i.type === 'resource' }),
+        collection: jeModulesInfo.filter((i) => { return i.type === 'collection' })
+      },
+      be_modules: {
+        resource: beModulesInfo.filter((i) => { return i.type === 'resource' }),
+        collection: beModulesInfo.filter((i) => { return i.type === 'collection' })
+      },
+      je_modified: statSync(resolve(jePath, '.git/index')).mtime.valueOf(),
+      be_modified: statSync(resolve(bePath, '.git/index')).mtime.valueOf()
     }
   } catch (e) {
     console.error(e)
