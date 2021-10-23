@@ -2,3 +2,4 @@ RUNTIME custom
 
 RUN fun-install apt-get install git
 RUN fun-install apt-get install libcurl4-openssl-dev
+RUN rm -rf node_modules/ package.json
