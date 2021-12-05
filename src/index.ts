@@ -11,7 +11,7 @@ import crypto from 'crypto'
 const Minio = require('minio')
 import { exec } from 'child_process'
 import { promisify } from 'util'
-require('dotenv').config({ path: resolve(__dirname, process.env.NODE_ENV === 'production' ? '../.env.production' : '../.env') })
+require('dotenv').config({ path: resolve(__dirname, process.env.NODE_ENV === 'production' ? './.env' : '../.env') })
 
 const execPromise = promisify(exec)
 
@@ -130,9 +130,11 @@ router.post('/github/', async (ctx) => {
   }
   const dir = ctx.request.body.repository.name === "mcwzh-meme-resourcepack" ? jePath : bePath
   let result = ""
-  let r = await execPromise(`git checkout master`, { cwd: dir })
+  let r = await execPromise(`git fetch`, { cwd: dir })
   result += "\n" + r.stdout
-  r = await execPromise(`git pull`, { cwd: dir })
+  r = await execPromise(`git reset --hard origin/master`, { cwd: dir })
+  //result += "\n" + r.stdout
+  //r = await execPromise(`git pull`, { cwd: dir })
   result += "\n" + r.stdout
   ctx.body = {
     stdout: result,
