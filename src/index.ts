@@ -130,11 +130,11 @@ router.post('/github/', async (ctx) => {
   }
   const dir = ctx.request.body.repository.name === "mcwzh-meme-resourcepack" ? jePath : bePath
   let result = ""
-  let r = await execPromise(`git fetch`, { cwd: dir })
+  let r = await execPromise(`git reset --hard @{u}`, { cwd: dir })
+  result += r.stdout
+  r = await execPromise(`git clean -df`, { cwd: dir })
   result += "\n" + r.stdout
-  r = await execPromise(`git reset --hard origin/master`, { cwd: dir })
-  //result += "\n" + r.stdout
-  //r = await execPromise(`git pull`, { cwd: dir })
+  r = await execPromise(`git pull`, { cwd: dir })
   result += "\n" + r.stdout
   ctx.body = {
     stdout: result,
