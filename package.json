@@ -4,7 +4,7 @@
     "watch": "tsc --watch",
     "dev": "nodemon dist/index.js",
     "build": "ts-node build.ts",
-    "deploy": "yarn build && fun deploy -y"
+    "deploy": "fun deploy -y"
   },
   "dependencies": {
     "@koa/cors": "^3.1.0",
