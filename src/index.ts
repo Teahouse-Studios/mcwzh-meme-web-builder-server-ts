@@ -2,7 +2,7 @@ import Koa from 'koa'
 import Router from '@koa/router'
 import { tmpdir } from 'os'
 import { resolve } from 'path'
-import { readdirSync, statSync } from 'fs'
+import { readdirSync, statSync, unlinkSync } from 'fs'
 import { MemepackBuilder, ModuleParser } from 'memepack-builder'
 import cors from '@koa/cors'
 import koaBody from 'koa-body'
@@ -24,7 +24,7 @@ app.use(koaBody({
 
 const client = new Minio.Client({
   endPoint: `${process.env.S3_REGION}.aliyuncs.com`,
-  accessKey:  process.env.S3_KEYID,
+  accessKey: process.env.S3_KEYID,
   secretKey: process.env.S3_SECRET,
   pathStyle: false,
   region: process.env.S3_REGION,
@@ -130,6 +130,7 @@ router.post('/github/', async (ctx) => {
   }
   const dir = ctx.request.body.repository.name === "mcwzh-meme-resourcepack" ? jePath : bePath
   let result = ""
+  try { unlinkSync(resolve(dir, '.git/index.lock')) } catch (e) { }
   let r = await execPromise(`git reset --hard @{u}`, { cwd: dir })
   result += r.stdout
   r = await execPromise(`git clean -df`, { cwd: dir })
