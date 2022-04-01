@@ -31,7 +31,7 @@ const client = new Minio.Client({
   bucket: process.env.S3_BUCKET
 })
 
-const root = process.env.NODE_ENV === 'production' ? '/mnt/meme/' : resolve(__dirname, '..', 'data')
+const root = resolve(__dirname, '..', 'data')
 
 const jePath = resolve(root, 'mcwzh-meme-resourcepack')
 const bePath = resolve(root, 'mcwzh-meme-resourcepack-bedrock')
