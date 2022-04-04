@@ -84,12 +84,9 @@ router.get('/', async (ctx) => {
 router.post('/ajax', async (ctx) => {
   const je = new JavaBuilder({ resourcePath: resolve(jePath, 'meme_resourcepack'), moduleOverview: await jeModules.moduleInfo() })
   const be = new BedrockBuilder({ resourcePath: resolve(bePath, 'meme_resourcepack'), moduleOverview: await beModules.moduleInfo() })
-  let mods = (await readdirSync(resolve(jePath, 'mods'))).map(v => `mods/${v}`)
-  let enmods = (await readdirSync(resolve(jePath, 'en-mods'))).map(v => `en-mods/${v}`)
-  const { type, modules, sfw, format, compatible } = ctx.request.body
+  const { type, modules, mod, sfw, format, compatible } = ctx.request.body
   const _be = Boolean(ctx.request.body._be);
   const builder = _be ? be : je
-  let mod = ctx.request.body.mod?.[0] === "all" ? mods.concat(enmods) : ctx.request.body.mod
   builder.options = {
     type, modules, mod, sfw, format, hash: true,
     compatible,
