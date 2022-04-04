@@ -3,7 +3,7 @@ import Router from '@koa/router'
 import { tmpdir } from 'os'
 import { resolve } from 'path'
 import { readdirSync, statSync, unlinkSync } from 'fs'
-import { MemepackBuilder, ModuleParser } from 'memepack-builder'
+import { BedrockBuilder, JavaBuilder, ModuleParser } from 'memepack-builder'
 import cors from '@koa/cors'
 import koaBody from 'koa-body'
 import unparsed from 'koa-body/unparsed.js'
@@ -36,8 +36,7 @@ const root = resolve(__dirname, '..', 'data')
 const jePath = resolve(root, 'mcwzh-meme-resourcepack')
 const bePath = resolve(root, 'mcwzh-meme-resourcepack-bedrock')
 
-const je = new MemepackBuilder({ platform: 'je', resourcePath: resolve(jePath, 'meme_resourcepack'), modulePath: resolve(jePath, 'modules') })
-const be = new MemepackBuilder({ platform: 'be', resourcePath: resolve(bePath, 'meme_resourcepack'), modulePath: resolve(bePath, 'modules') })
+
 
 const jeModules = new ModuleParser(resolve(jePath, 'modules'))
 const beModules = new ModuleParser(resolve(bePath, 'modules'))
@@ -83,6 +82,8 @@ router.get('/', async (ctx) => {
 })
 
 router.post('/ajax', async (ctx) => {
+  const je = new JavaBuilder({ resourcePath: resolve(jePath, 'meme_resourcepack'), moduleOverview: await jeModules.moduleInfo() })
+  const be = new BedrockBuilder({ resourcePath: resolve(bePath, 'meme_resourcepack'), moduleOverview: await beModules.moduleInfo() })
   const { type, modules, mod, sfw, format, compatible } = ctx.request.body
   const _be = Boolean(ctx.request.body._be);
   const builder = _be ? be : je
@@ -92,7 +93,7 @@ router.post('/ajax', async (ctx) => {
     outputDir: tmpdir()
   }
   try {
-    let r = await builder.build(true)
+    let r = await builder.build()
     let exist = true
     try {
       await client.statObject(process.env.S3_BUCKET, r.name)
