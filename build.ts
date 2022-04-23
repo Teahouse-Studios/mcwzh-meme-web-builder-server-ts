@@ -10,9 +10,7 @@ async function b(){
         target: 'node16',
         sourcemap: 'inline'
     })
-    fs.copyFileSync('./bootstrap', './dist/bootstrap')
     fs.copyFileSync('./.env', './dist/.env')
-
 }
 
 b()

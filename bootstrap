@@ -1,7 +1,0 @@
-#!/usr/bin/env bash
-set +e
-
-#git config --global url."https://".insteadOf git://
-#git config --global user.email "ts@example.com"
-#git config --global user.name "Teahouse Studios"
-NODE_ENV=production /mnt/meme/node --enable-source-maps ./index.js
