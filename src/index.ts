@@ -1,6 +1,6 @@
 import Koa from 'koa'
 import Router from '@koa/router'
-import { tmpdir } from 'os'
+import axios from 'axios'
 import { resolve } from 'path'
 import { readdirSync, statSync, unlinkSync } from 'fs'
 import { BedrockBuilder, JavaBuilder, ModuleParser } from 'memepack-builder'
@@ -137,6 +137,18 @@ router.post('/github/', async (ctx) => {
   result += "\n" + r.stdout
   r = await execPromise(`git pull`, { cwd: dir })
   result += "\n" + r.stdout
+
+  result += "\n" + JSON.stringify((await axios({
+    url: ctx.request.body.deployment.statuses_url,
+    method: 'post',
+    data: {
+      state: 'success'
+    },
+    headers: {
+      'Authorization': `token ${process.env.GH_TOKEN}`
+    }
+  })).data)
+
   ctx.body = {
     stdout: result,
     dir
