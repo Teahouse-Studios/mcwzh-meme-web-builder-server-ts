@@ -89,7 +89,7 @@ router.post('/ajax', async (ctx) => {
   const mod = ctx.request.body.mod.map(v => resolve(_be ? bePath : jePath, v))
   builder.options = {
     type, modules, mod, sfw, format, hash: true,
-    compatible, outputName: 'build.zip'
+    compatible, outputName: (_be ? ('build.' + type) : type)
   }
   try {
     let r = await builder.build()
