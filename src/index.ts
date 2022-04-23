@@ -3,7 +3,7 @@ import Router from '@koa/router'
 import axios from 'axios'
 import { resolve } from 'path'
 import { readdirSync, statSync, unlinkSync } from 'fs'
-import { BedrockBuilder, JavaBuilder, ModuleParser } from 'memepack-builder'
+import { BedrockBuilder, JavaBuilder, ModuleParser, Logger } from 'memepack-builder'
 import cors from '@koa/cors'
 import koaBody from 'koa-body'
 import unparsed from 'koa-body/unparsed.js'
@@ -85,7 +85,7 @@ router.post('/ajax', async (ctx) => {
   const be = new BedrockBuilder({ resourcePath: resolve(bePath, 'meme_resourcepack'), moduleOverview: await beModules.moduleInfo() })
   const { type, modules, sfw, format, compatible } = ctx.request.body
   const _be = Boolean(ctx.request.body._be);
-  const builder = _be ? be : je
+  const builder: JavaBuilder | BedrockBuilder = _be ? be : je
   const mod = ctx.request.body.mod.map(v => resolve(_be ? bePath : jePath, v))
   builder.options = {
     type, modules, mod, sfw, format, hash: true,
@@ -104,10 +104,11 @@ router.post('/ajax', async (ctx) => {
       await client.putObject(process.env.S3_BUCKET, r.filename, r.buf)
     }
     ctx.body = {
-      logs: builder.log.join('\n'),
+      logs: Logger.log.join('\n'),
       filename: r.filename,
       root: process.env.S3_ROOT
     }
+    Logger.clearLog()
   } catch (e) {
     console.error(e)
     ctx.status = 403
