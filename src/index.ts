@@ -3,7 +3,7 @@ import Router from '@koa/router'
 import axios from 'axios'
 import { resolve } from 'path'
 import { readdirSync, statSync, unlinkSync } from 'fs'
-import { BedrockBuilder, JavaBuilder, ModuleParser, Logger } from 'memepack-builder'
+import { BedrockPackBuilder, JavaPackBuilder, ModuleParser, Logger } from 'memepack-builder'
 import cors from '@koa/cors'
 import koaBody from 'koa-body'
 import unparsed from 'koa-body/unparsed.js'
@@ -81,31 +81,37 @@ router.get('/', async (ctx) => {
 })
 
 router.post('/ajax', async (ctx) => {
-  const je = new JavaBuilder({ resourcePath: resolve(jePath, 'meme_resourcepack'), moduleOverview: await jeModules.moduleInfo() })
-  const be = new BedrockBuilder({ resourcePath: resolve(bePath, 'meme_resourcepack'), moduleOverview: await beModules.moduleInfo() })
   const { type, modules, sfw, format, compatible } = ctx.request.body
   const _be = Boolean(ctx.request.body._be);
-  const builder: JavaBuilder | BedrockBuilder = _be ? be : je
+  
   const mod = ctx.request.body.mod.map(v => resolve(_be ? bePath : jePath, v))
-  builder.options = {
-    type, modules, mod, sfw, format, hash: true,
-    compatible, outputName: (_be ? ('bedrock.' + type) : 'java.zip')
-  }
+  
+  const je = new JavaPackBuilder(await jeModules.moduleInfo(), resolve(jePath, 'meme_resourcepack'), {
+    modFiles: mod
+  })
+  const be = new JavaPackBuilder(await jeModules.moduleInfo(), resolve(jePath, 'meme_resourcepack'), {
+    modFiles: mod
+  })
+  const builder: JavaPackBuilder | BedrockPackBuilder = _be ? be : je
   try {
-    let r = await builder.build()
+    let r = await builder.build({
+      type, modules, mod, format, hash: true,
+      compatible, platform: 'java'
+    })
     let exist = true
+    const name = r.name + '.zip'
     try {
-      await client.statObject(process.env.S3_BUCKET, r.filename)
+      await client.statObject(process.env.S3_BUCKET, name)
     } catch (e) {
       exist = false
     }
     if (!exist) {
       console.log('not exist, reupload')
-      await client.putObject(process.env.S3_BUCKET, r.filename, r.buf)
+      await client.putObject(process.env.S3_BUCKET, name, r.content)
     }
     ctx.body = {
-      logs: Logger.log.join('\n'),
-      filename: r.filename,
+      logs: Logger.log,
+      filename: name,
       root: process.env.S3_ROOT
     }
     Logger.clearLog()
@@ -113,7 +119,7 @@ router.post('/ajax', async (ctx) => {
     console.error(e)
     ctx.status = 403
     ctx.body = {
-      logs: e.stack + '\n' + builder.log.join('\n')
+      logs: e.stack + '\n' + Logger.log
     }
   }
 })
