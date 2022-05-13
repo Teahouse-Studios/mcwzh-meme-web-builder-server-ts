@@ -81,25 +81,25 @@ router.get('/', async (ctx) => {
 })
 
 router.post('/ajax', async (ctx) => {
-  const { type, modules, sfw, format, compatible } = ctx.request.body
+  const { type, modules, format, compatible } = ctx.request.body
   const _be = Boolean(ctx.request.body._be);
-  
+
   const mod = ctx.request.body.mod.map(v => resolve(_be ? bePath : jePath, v))
-  
+
   const je = new JavaPackBuilder(await jeModules.moduleInfo(), resolve(jePath, 'meme_resourcepack'), {
     modFiles: mod
   })
-  const be = new JavaPackBuilder(await jeModules.moduleInfo(), resolve(jePath, 'meme_resourcepack'), {
+  const be = new BedrockPackBuilder(await beModules.moduleInfo(), resolve(bePath, 'meme_resourcepack'), {
     modFiles: mod
   })
   const builder: JavaPackBuilder | BedrockPackBuilder = _be ? be : je
   try {
     let r = await builder.build({
       type, modules, mod, format, hash: true,
-      compatible, platform: 'java'
+      compatible, platform: _be ? 'bedrock' : 'java'
     })
     let exist = true
-    const name = r.name + '.zip'
+    const name = r.hash.substring(0,10) + (type === 'mcpack' ? '.mcpack' : '.zip')
     try {
       await client.statObject(process.env.S3_BUCKET, name)
     } catch (e) {
@@ -110,17 +110,18 @@ router.post('/ajax', async (ctx) => {
       await client.putObject(process.env.S3_BUCKET, name, r.content)
     }
     ctx.body = {
-      logs: Logger.log,
+      logs: Logger.log.join('\n'),
       filename: name,
       root: process.env.S3_ROOT
     }
-    Logger.clearLog()
   } catch (e) {
     console.error(e)
     ctx.status = 403
     ctx.body = {
-      logs: e.stack + '\n' + Logger.log
+      logs: e.toString() + '\n' + Logger.log.join('\n')
     }
+  } finally {
+    Logger.clearLog()
   }
 })
 
