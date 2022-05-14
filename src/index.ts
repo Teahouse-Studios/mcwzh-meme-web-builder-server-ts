@@ -92,23 +92,26 @@ router.post('/ajax', async (ctx) => {
   const be = new BedrockPackBuilder(await beModules.moduleInfo(), resolve(bePath, 'meme_resourcepack'), {
     modFiles: mod
   })
-  const builder: JavaPackBuilder | BedrockPackBuilder = _be ? be : je
   try {
-    let r = await builder.build({
+    let r = _be ? await be.build({
+      type, modules, hash: true,
+      compatible, platform: 'bedrock'
+    }) : await je.build({
       type, modules, mod, format, hash: true,
-      compatible, platform: _be ? 'bedrock' : 'java'
+      compatible, platform: 'java'
     })
     let exist = true
-    const name = r.hash.substring(0,10) + (type === 'mcpack' ? '.mcpack' : '.zip')
+    const name = 'meme.teahouse.team ' + r.hash.substring(0, 6) + (type === 'mcpack' ? '.mcpack' : '.zip')
     try {
       await client.statObject(process.env.S3_BUCKET, name)
     } catch (e) {
       exist = false
     }
     if (!exist) {
-      console.log('not exist, reupload')
+      Logger.appendLog('Reupload...')
       await client.putObject(process.env.S3_BUCKET, name, r.content)
     }
+    Logger.appendLog('Built success.')
     ctx.body = {
       logs: Logger.log.join('\n'),
       filename: name,
