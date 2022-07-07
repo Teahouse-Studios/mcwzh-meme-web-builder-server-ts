@@ -1633,10 +1633,10 @@ media-typer@0.3.0:
   resolved "https://registry.yarnpkg.com/media-typer/-/media-typer-0.3.0.tgz#8710d7af0aa626f8fffa1ce00168545263255748"
   integrity sha1-hxDXrwqmJvj/+hzgAWhUUmMlV0g=
 
-memepack-builder@^0.2.0-beta.0:
-  version "0.2.0-beta.0"
-  resolved "https://registry.yarnpkg.com/memepack-builder/-/memepack-builder-0.2.0-beta.0.tgz#b8fe1a30d26411fc4945aab059ec455852368b96"
-  integrity sha512-J9pat4Hr/v/quoZ0tMUH/yCKP0dTY5+InC7hXbvb4Rza5101ImO7qX2oTpfx0W0S9gP5GyPNsWXSJJ8zbRHHCQ==
+memepack-builder@^0.2.0-beta.1:
+  version "0.2.0-beta.1"
+  resolved "https://registry.npmjs.org/memepack-builder/-/memepack-builder-0.2.0-beta.1.tgz#0ab7723ab7f36a1273f6be5b1a498ec2fda103e1"
+  integrity sha512-W/bVjeDJ7rWF4AmS2zaDIKuEeJU/FOnhdrzCK3I94F9zauVaqDXNNraaq76sg8b4CcvuS5bu7Px7XBDx6n4iTg==
   dependencies:
     fs-extra "^10.1.0"
     klaw "^4.0.1"
