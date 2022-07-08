@@ -2,9 +2,6 @@ node_modules
 dist
 data
 yarn-error.log
-template.yml
 .env
 .env.*
-.fun
-.fun
-s.yaml
+deploy.bat
