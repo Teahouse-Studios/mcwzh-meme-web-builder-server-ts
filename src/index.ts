@@ -145,8 +145,9 @@ router.post('/v2/build/java', async (ctx) => {
           '(applies mapping, converts to .lang and uses zh_cn.lang instead)',
       }[type]
     }
-    Enabled modules: ${modules.join(', ')}
-    ${mod.length > 0 && `Enabled mods: ${mod.join(', ')}`}
+    Enabled resource modules: ${modules.resource.join(', ')}
+    Enabled collection modules: ${modules.collection.join(', ')}
+    ${mod.length > 0 && `Enabled mods: ${mods.join(', ')}`}
     Output file format: .zip
     `)
     let r = await builder.build({
@@ -172,7 +173,14 @@ router.post('/v2/build/java', async (ctx) => {
       Logger.appendLog('Uploading file to Bucket...')
       await client.putObject(process.env.S3_BUCKET, name, r.content)
     }
-    Logger.appendLog(`Built ${name} successfully.`)
+    const warnings = Logger.log.filter((v) => v.match(/warn/))
+    Logger.appendLog(
+      `Built ${name} ${
+        warnings.length > 0
+          ? `with ${warnings.length} warning(s)`
+          : 'successfully'
+      }.`
+    )
     ctx.body = {
       logs: Logger.log.join('\n'),
       filename: name,
@@ -209,7 +217,8 @@ router.post('/v2/build/bedrock', async (ctx) => {
         compatible: '(uses zh_cn.lang instead)',
       }[type]
     }
-    Enabled modules: ${modules.join(', ')}
+    Enabled resource modules: ${modules.resource.join(', ')}
+    Enabled collection modules: ${modules.collection.join(', ')}
     Output file format: .${extension}
     `)
     let r = await builder.build({
