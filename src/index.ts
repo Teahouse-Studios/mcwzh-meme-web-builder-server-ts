@@ -190,8 +190,8 @@ router.post('/v2/build/java', async (ctx) => {
 })
 
 router.post('/v2/build/bedrock', async (ctx) => {
-  const { type = 'normal', modules = [], extension } = ctx.request.body
-  const mod = ctx.request.body.mod.map((v) => resolve(bePath, v))
+  const { type = 'normal', modules = [], extension = 'zip' } = ctx.request.body
+  const mod = [].map((v) => resolve(bePath, v))
 
   const builder = new BedrockPackBuilder(
     await beModules.moduleInfo(),
@@ -290,7 +290,7 @@ router.post('/ajax', async (ctx) => {
         })
     let exist = true
     const name =
-      'meme.teahouse.team ' +
+      'meme.teahouse.team-' +
       r.hash.substring(0, 6) +
       (type === 'mcpack' ? '.mcpack' : '.zip')
     try {
