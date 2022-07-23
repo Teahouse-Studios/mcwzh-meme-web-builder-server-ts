@@ -232,7 +232,7 @@ router.post('/v2/build/bedrock', async (ctx) => {
     const name =
       'meme.teahouse.team-' +
       r.hash.substring(0, 6) +
-      (type === 'mcpack' ? '.mcpack' : '.zip')
+      (extension === 'mcpack' ? '.mcpack' : '.zip')
     try {
       await client.statObject(process.env.S3_BUCKET, name)
     } catch (e) {
