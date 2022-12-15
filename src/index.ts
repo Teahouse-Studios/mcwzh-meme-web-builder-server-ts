@@ -185,6 +185,8 @@ router.post('/v2/build/java', async (ctx) => {
       logs: Logger.log.join('\n'),
       filename: name,
       root: process.env.S3_ROOT,
+      checksum: r.hash,
+      size: r.content.length,
     }
   } catch (e) {
     console.error(e)
@@ -247,6 +249,8 @@ router.post('/v2/build/bedrock', async (ctx) => {
       logs: Logger.log.join('\n'),
       filename: name,
       root: process.env.S3_ROOT,
+      checksum: r.hash,
+      size: r.content.length,
     }
   } catch (e) {
     console.error(e)
