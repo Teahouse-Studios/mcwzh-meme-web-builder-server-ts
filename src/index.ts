@@ -2,17 +2,15 @@ import Koa from 'koa'
 import Router from '@koa/router'
 import axios from 'axios'
 import { resolve } from 'path'
-import { readdirSync, statSync, unlinkSync } from 'fs'
+import { readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'fs'
 import {
   BedrockPackBuilder,
   JavaPackBuilder,
-  ModuleParser,
-  Logger,
-  CURRENT_FORMAT_VERSION,
+  ModuleParser
 } from 'memepack-builder'
 import cors from '@koa/cors'
 import koaBody from 'koa-body'
-import unparsed from 'koa-body/unparsed.js'
+import unparsed from 'koa-body/lib/unparsed'
 import crypto from 'crypto'
 const Minio = require('minio')
 import { exec } from 'child_process'
@@ -35,6 +33,11 @@ app.use(
   })
 )
 
+const hashIt = (data: Buffer) => {
+  const a = crypto.createHash('sha256')
+  return a.update(data).digest('hex')
+}
+
 const client = new Minio.Client({
   endPoint: `${process.env.S3_REGION}.aliyuncs.com`,
   accessKey: process.env.S3_KEYID,
@@ -49,8 +52,10 @@ const root = resolve(__dirname, '..', 'data')
 const jePath = resolve(root, 'mcwzh-meme-resourcepack')
 const bePath = resolve(root, 'mcwzh-meme-resourcepack-bedrock')
 
-const jeModules = new ModuleParser(resolve(jePath, 'modules'))
-const beModules = new ModuleParser(resolve(bePath, 'modules'))
+const jeModules = new ModuleParser()
+jeModules.addSearchPaths(resolve(jePath, 'modules'))
+const beModules = new ModuleParser()
+beModules.addSearchPaths(resolve(bePath, 'modules'))
 
 app.use(async (ctx, next) => {
   try {
@@ -64,13 +69,9 @@ app.use(async (ctx, next) => {
   }
 })
 
-router.get(['/', '/v2/modules'], async (ctx) => {
-  const jeModulesInfo = (await jeModules.moduleInfo()).modules.map(
-    ({ languageModification, ...rest }) => ({ ...rest })
-  )
-  const beModulesInfo = (await beModules.moduleInfo()).modules.map(
-    ({ languageModification, ...rest }) => ({ ...rest })
-  )
+router.get('/v2/modules', async (ctx) => {
+  const jeModulesInfo = (await jeModules.searchModules())
+  const beModulesInfo = (await beModules.searchModules())
   try {
     let mods = (await readdirSync(resolve(jePath, 'mods'))).map(
       (v) => `mods/${v}`
@@ -78,32 +79,25 @@ router.get(['/', '/v2/modules'], async (ctx) => {
     let enmods = (await readdirSync(resolve(jePath, 'en-mods'))).map(
       (v) => `en-mods/${v}`
     )
-    const warning =
-      ctx.path === '/'
-        ? {
-            warning:
-              'Warning: v0 api is deprecated and will be REMOVED very soon. Please remove its usage and use /v2/modules instead.',
-          }
-        : {}
     ctx.body = {
-      ...warning,
+      warning: {},
       mods,
       enmods,
       je_modules: {
         resource: jeModulesInfo.filter((i) => {
-          return i.type === 'resource'
-        }),
+          return i.manifest.type === 'resource'
+        }).map(v => v.manifest),
         collection: jeModulesInfo.filter((i) => {
-          return i.type === 'collection'
-        }),
+          return i.manifest.type === 'collection'
+        }).map(v => v.manifest),
       },
       be_modules: {
         resource: beModulesInfo.filter((i) => {
-          return i.type === 'resource'
-        }),
+          return i.manifest.type === 'resource'
+        }).map(v => v.manifest),
         collection: beModulesInfo.filter((i) => {
-          return i.type === 'collection'
-        }),
+          return i.manifest.type === 'collection'
+        }).map(v => v.manifest),
       },
       je_modified: statSync(resolve(jePath, '.git/index')).mtime.valueOf(),
       be_modified: statSync(resolve(bePath, '.git/index')).mtime.valueOf(),
@@ -117,40 +111,64 @@ router.get(['/', '/v2/modules'], async (ctx) => {
   }
 })
 
+
+function createLegacyMapping() {
+  let files = readdirSync(resolve(jePath, 'mappings')).filter(v => v.endsWith(".json"))
+  let obj = {}
+  for (const filename of files) {
+    let data = JSON.parse(readFileSync(resolve(jePath, 'mappings', filename)).toString())
+    obj = { ...obj, ...data }
+  }
+  writeFileSync(resolve(__dirname, '../mapping.json'), JSON.stringify(obj))
+}
+
+createLegacyMapping()
+
 router.post('/v2/build/java', async (ctx) => {
-  const {
-    type = 'normal',
-    modules = [],
-    format = CURRENT_FORMAT_VERSION,
-    mods = [],
-  } = ctx.request.body
+  let {
+    type,
+    modules,
+    format,
+    mods,
+  } = ctx.request.body as unknown as {
+    format: number
+    mods: string[]
+    modules: {
+      collection: string[]
+      resource: string[]
+    }
+    type: string
+  }
 
   const mod = mods.map((v) => resolve(jePath, v))
+  const log = []
+
 
   const builder = new JavaPackBuilder(
-    await jeModules.moduleInfo(),
-    resolve(jePath, 'meme_resourcepack'),
-    {
-      modFiles: mod,
-    }
+    await jeModules.searchModules(),
+    resolve(jePath, 'modules', 'priority.txt'),
+    resolve(__dirname, '../mapping.json')
   )
+  modules = {
+    collection: modules.collection,
+    resource: ['meme_resourcepack', ...modules.resource]
+  }
   try {
-    Logger.appendLog(`Recieved request with options:
+    log.push(`Recieved request with options:
     Platform: Java
-    Target type: ${type} ${
-      {
+    Target type: ${type} ${{
         normal: '',
         compatible: '(uses zh_cn.json instead)',
         legacy:
           '(applies mapping, converts to .lang and uses zh_cn.lang instead)',
       }[type]
-    }
+      }
     Enabled resource modules: ${modules.resource.join(', ')}
     Enabled collection modules: ${modules.collection.join(', ')}
     ${mod.length > 0 && `Enabled mods: ${mods.join(', ')}`}
     Output file format: .zip
     `)
-    let r = await builder.build({
+    const r = await builder.build({
       type: type === 'legacy' ? 'legacy' : 'normal',
       modules,
       mod,
@@ -159,10 +177,11 @@ router.post('/v2/build/java', async (ctx) => {
       compatible: type === 'compatible',
       platform: 'java',
     })
+    const hash = hashIt(r)
     let exist = true
     const name =
       'meme.teahouse.team-' +
-      r.hash.substring(0, 6) +
+      hash.substring(0, 6) +
       (type === 'mcpack' ? '.mcpack' : '.zip')
     try {
       await client.statObject(process.env.S3_BUCKET, name)
@@ -170,55 +189,53 @@ router.post('/v2/build/java', async (ctx) => {
       exist = false
     }
     if (!exist) {
-      Logger.appendLog('Uploading file to Bucket...')
-      await client.putObject(process.env.S3_BUCKET, name, r.content)
+      log.push('Uploading file to Bucket...')
+      await client.putObject(process.env.S3_BUCKET, name, r)
     }
-    const warnings = Logger.log.filter((v) => v.match(/warn/))
-    Logger.appendLog(
-      `Built ${name} ${
-        warnings.length > 0
-          ? `with ${warnings.length} warning(s)`
-          : 'successfully'
+
+    const warnings = []
+    log.push(
+      `Built ${name} ${warnings.length > 0
+        ? `with ${warnings.length} warning(s)`
+        : 'successfully'
       }.`
     )
     ctx.body = {
-      logs: Logger.log.join('\n'),
+      logs: log.join('\n'),
       filename: name,
       root: process.env.S3_ROOT,
-      checksum: r.hash,
-      size: r.content.length,
+      checksum: hash,
+      size: r.length,
     }
   } catch (e) {
     console.error(e)
     ctx.status = 403
     ctx.body = {
-      logs: e.toString() + '\n' + Logger.log.join('\n'),
+      logs: e.toString() + '\n' + log.join('\n'),
     }
-  } finally {
-    Logger.clearLog()
   }
 })
 
 router.post('/v2/build/bedrock', async (ctx) => {
-  const { type = 'normal', modules = [], extension = 'zip' } = ctx.request.body
-  const mod = [].map((v) => resolve(bePath, v))
+  let { type = 'normal', modules = [], extension = 'zip' } = ctx.request.body
 
   const builder = new BedrockPackBuilder(
-    await beModules.moduleInfo(),
-    resolve(bePath, 'meme_resourcepack'),
-    {
-      modFiles: mod,
-    }
+    await beModules.searchModules(),
+    resolve(bePath, 'modules', 'priority.txt')
   )
+  modules = {
+    collection: modules.collection,
+    resource: ['meme_resourcepack', ...modules.resource]
+  }
+  const log = []
   try {
-    Logger.appendLog(`Recieved request with options:
+    log.push(`Recieved request with options:
     Platform: Bedrock
-    Target type: ${type} ${
-      {
+    Target type: ${type} ${{
         normal: '',
         compatible: '(uses zh_cn.lang instead)',
       }[type]
-    }
+      }
     Enabled resource modules: ${modules.resource.join(', ')}
     Enabled collection modules: ${modules.collection.join(', ')}
     Output file format: .${extension}
@@ -230,10 +247,11 @@ router.post('/v2/build/bedrock', async (ctx) => {
       compatible: type === 'compatible',
       platform: 'bedrock',
     })
+    const hash = hashIt(r)
     let exist = true
     const name =
       'meme.teahouse.team-' +
-      r.hash.substring(0, 6) +
+      hash.substring(0, 6) +
       (extension === 'mcpack' ? '.mcpack' : '.zip')
     try {
       await client.statObject(process.env.S3_BUCKET, name)
@@ -241,100 +259,23 @@ router.post('/v2/build/bedrock', async (ctx) => {
       exist = false
     }
     if (!exist) {
-      Logger.appendLog('Uploading file to Bucket...')
-      await client.putObject(process.env.S3_BUCKET, name, r.content)
+      log.push('Uploading file to Bucket...')
+      await client.putObject(process.env.S3_BUCKET, name, r)
     }
-    Logger.appendLog(`Built ${name} successfully.`)
+    log.push(`Built ${name} successfully.`)
     ctx.body = {
-      logs: Logger.log.join('\n'),
+      logs: log.join('\n'),
       filename: name,
       root: process.env.S3_ROOT,
-      checksum: r.hash,
-      size: r.content.length,
+      checksum: hash,
+      size: r.length,
     }
   } catch (e) {
     console.error(e)
     ctx.status = 403
     ctx.body = {
-      logs: e.toString() + '\n' + Logger.log.join('\n'),
+      logs: e.toString() + '\n' + log.join('\n'),
     }
-  } finally {
-    Logger.clearLog()
-  }
-})
-
-router.post('/ajax', async (ctx) => {
-  const { type, modules, format, compatible } = ctx.request.body
-  const _be = Boolean(ctx.request.body._be)
-
-  const mod = ctx.request.body.mod.map((v) => resolve(_be ? bePath : jePath, v))
-
-  const je = new JavaPackBuilder(
-    await jeModules.moduleInfo(),
-    resolve(jePath, 'meme_resourcepack'),
-    {
-      modFiles: mod,
-    }
-  )
-  const be = new BedrockPackBuilder(
-    await beModules.moduleInfo(),
-    resolve(bePath, 'meme_resourcepack'),
-    {
-      modFiles: mod,
-    }
-  )
-  try {
-    let r = _be
-      ? await be.build({
-          type,
-          modules,
-          hash: true,
-          compatible,
-          platform: 'bedrock',
-        })
-      : await je.build({
-          type,
-          modules,
-          mod,
-          format,
-          hash: true,
-          compatible,
-          platform: 'java',
-        })
-    let exist = true
-    const name =
-      'meme.teahouse.team-' +
-      r.hash.substring(0, 6) +
-      (type === 'mcpack' ? '.mcpack' : '.zip')
-    try {
-      await client.statObject(process.env.S3_BUCKET, name)
-    } catch (e) {
-      exist = false
-    }
-    if (!exist) {
-      Logger.appendLog('Reupload...')
-      await client.putObject(process.env.S3_BUCKET, name, r.content)
-    }
-    Logger.appendLog('Built success.')
-    ctx.body = {
-      logs:
-        'Warning: v0 api is deprecated and will be REMOVED very soon. Please remove its usage and use /v2/build/:edition instead.\n' +
-        Logger.log.join('\n'),
-      filename: name,
-      root: process.env.S3_ROOT,
-    }
-  } catch (e) {
-    console.error(e)
-    ctx.status = 403
-    ctx.body = {
-      logs:
-        'Warning: v0 api is deprecated and will be REMOVED very soon. Please remove its usage and use /v2/build/:edition instead.\n' +
-        e.toString() +
-        '\n' +
-        Logger.log.join('\n'),
-    }
-  } finally {
-    Logger.clearLog()
   }
 })
 
@@ -362,7 +303,7 @@ router.post('/github/', async (ctx) => {
   let result = ''
   try {
     unlinkSync(resolve(dir, '.git/index.lock'))
-  } catch (e) {}
+  } catch (e) { }
   let r = await execPromise(`git reset --hard @{u}`, { cwd: dir })
   result += r.stdout
   r = await execPromise(`git clean -df`, { cwd: dir })
@@ -386,6 +327,7 @@ router.post('/github/', async (ctx) => {
         })
       ).data
     )
+  createLegacyMapping()
 
   ctx.body = {
     stdout: result,

@@ -5,3 +5,4 @@ yarn-error.log
 .env
 .env.*
 deploy.bat
+mapping.json
