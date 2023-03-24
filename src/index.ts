@@ -154,7 +154,7 @@ router.post('/v2/build/java', async (ctx) => {
     resource: ['meme_resourcepack', ...modules.resource]
   }
   try {
-    log.push(`Recieved request with options:
+    log.push(`Received request with options:
     Platform: Java
     Target type: ${type} ${{
         normal: '',
