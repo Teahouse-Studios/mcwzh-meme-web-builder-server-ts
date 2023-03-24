@@ -229,7 +229,7 @@ router.post('/v2/build/bedrock', async (ctx) => {
   }
   const log = []
   try {
-    log.push(`Recieved request with options:
+    log.push(`Received request with options:
     Platform: Bedrock
     Target type: ${type} ${{
         normal: '',
