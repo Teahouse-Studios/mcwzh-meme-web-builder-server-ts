@@ -308,7 +308,7 @@ router.post('/github/', async (ctx) => {
   result += r.stdout
   r = await execPromise(`git clean -df`, { cwd: dir })
   result += '\n' + r.stdout
-  r = await execPromise(`git pull`, { cwd: dir })
+  r = await execPromise(`git pull --recurse-submodules`, { cwd: dir })
   result += '\n' + r.stdout
 
   result +=
