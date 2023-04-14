@@ -2,7 +2,7 @@ import Koa from 'koa'
 import Router from '@koa/router'
 import axios from 'axios'
 import { resolve } from 'path'
-import { readdirSync, readFileSync, statSync, unlinkSync, writeFileSync } from 'fs'
+import { readdir, readFile, stat, unlink, writeFile } from 'fs/promises'
 import {
   BedrockPackBuilder,
   JavaPackBuilder,
@@ -15,6 +15,7 @@ import crypto from 'crypto'
 const Minio = require('minio')
 import { exec } from 'child_process'
 import { promisify } from 'util'
+import { ResourceModule } from 'memepack-builder/lib/types'
 require('dotenv').config({
   path: resolve(
     __dirname,
@@ -73,10 +74,10 @@ router.get('/v2/modules', async (ctx) => {
   const jeModulesInfo = (await jeModules.searchModules())
   const beModulesInfo = (await beModules.searchModules())
   try {
-    let mods = (await readdirSync(resolve(jePath, 'mods'))).map(
+    let mods = (await readdir(resolve(jePath, 'mods'))).map(
       (v) => `mods/${v}`
     )
-    let enmods = (await readdirSync(resolve(jePath, 'en-mods'))).map(
+    let enmods = (await readdir(resolve(jePath, 'en-mods'))).map(
       (v) => `en-mods/${v}`
     )
     ctx.body = {
@@ -99,8 +100,8 @@ router.get('/v2/modules', async (ctx) => {
           return i.manifest.type === 'collection'
         }).map(v => v.manifest),
       },
-      je_modified: statSync(resolve(jePath, '.git/index')).mtime.valueOf(),
-      be_modified: statSync(resolve(bePath, '.git/index')).mtime.valueOf(),
+      je_modified: (await stat(resolve(jePath, '.git/index'))).mtime.valueOf(),
+      be_modified: (await stat(resolve(bePath, '.git/index'))).mtime.valueOf(),
     }
   } catch (e) {
     console.error(e)
@@ -112,14 +113,14 @@ router.get('/v2/modules', async (ctx) => {
 })
 
 
-function createLegacyMapping() {
-  let files = readdirSync(resolve(jePath, 'mappings')).filter(v => v.endsWith(".json"))
+async function createLegacyMapping() {
+  let files = (await readdir(resolve(jePath, 'mappings'))).filter(v => v.endsWith(".json"))
   let obj = {}
   for (const filename of files) {
-    let data = JSON.parse(readFileSync(resolve(jePath, 'mappings', filename)).toString())
+    let data = JSON.parse((await readFile(resolve(jePath, 'mappings', filename))).toString())
     obj = { ...obj, ...data }
   }
-  writeFileSync(resolve(__dirname, '../mapping.json'), JSON.stringify(obj))
+  await writeFile(resolve(__dirname, '../mapping.json'), JSON.stringify(obj))
 }
 
 createLegacyMapping()
@@ -130,6 +131,7 @@ router.post('/v2/build/java', async (ctx) => {
     modules,
     format,
     mods,
+    // @ts-ignore
   } = ctx.request.body as unknown as {
     format: number
     mods: string[]
@@ -145,7 +147,7 @@ router.post('/v2/build/java', async (ctx) => {
 
 
   const builder = new JavaPackBuilder(
-    await jeModules.searchModules(),
+    await jeModules.searchModules() as ResourceModule[],
     resolve(jePath, 'modules', 'priority.txt'),
     resolve(__dirname, '../mapping.json')
   )
@@ -173,7 +175,6 @@ router.post('/v2/build/java', async (ctx) => {
       modules,
       mod,
       format,
-      hash: true,
       compatible: type === 'compatible',
       platform: 'java',
     })
@@ -217,6 +218,7 @@ router.post('/v2/build/java', async (ctx) => {
 })
 
 router.post('/v2/build/bedrock', async (ctx) => {
+  // @ts-ignore
   let { type = 'normal', modules = [], extension = 'zip' } = ctx.request.body
 
   const builder = new BedrockPackBuilder(
@@ -243,7 +245,6 @@ router.post('/v2/build/bedrock', async (ctx) => {
     let r = await builder.build({
       type: 'normal',
       modules,
-      hash: true,
       compatible: type === 'compatible',
       platform: 'bedrock',
     })
@@ -284,6 +285,7 @@ router.post('/github/', async (ctx) => {
   const remoteSig = Buffer.from(ctx.headers[sigHeaderName].toString())
   const hmac = crypto.createHmac('sha256', process.env.GH_WEBHOOK_SECRET)
   const digest = Buffer.from(
+    // @ts-ignore
     'sha256=' + hmac.update(ctx.request.body[unparsed]).digest('hex'),
     'utf-8'
   )
@@ -297,12 +299,13 @@ router.post('/github/', async (ctx) => {
     }
   }
   const dir =
+    // @ts-ignore
     ctx.request.body.repository.name === 'mcwzh-meme-resourcepack'
       ? jePath
       : bePath
   let result = ''
   try {
-    unlinkSync(resolve(dir, '.git/index.lock'))
+    await unlink(resolve(dir, '.git/index.lock'))
   } catch (e) { }
   let r = await execPromise(`git reset --hard @{u}`, { cwd: dir })
   result += r.stdout
@@ -316,6 +319,7 @@ router.post('/github/', async (ctx) => {
     JSON.stringify(
       (
         await axios({
+          // @ts-ignore
           url: ctx.request.body.deployment.statuses_url,
           method: 'post',
           data: {

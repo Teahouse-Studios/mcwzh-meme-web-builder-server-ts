@@ -12,6 +12,7 @@
     "esModuleInterop": true,
     "target": "es2020",
     "moduleResolution": "node",
-    "inlineSourceMap": true
+    "inlineSourceMap": true,
+    "skipLibCheck": true
   }
 }
